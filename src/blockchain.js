@@ -11,6 +11,7 @@
 const SHA256 = require('crypto-js/sha256');
 const BlockClass = require('./block.js');
 const bitcoinMessage = require('bitcoinjs-message');
+const hex2ascii = require('hex2ascii')
 
 class Blockchain {
 
@@ -64,9 +65,25 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-           
+            if(block.height === 0 ){
+                self.chain.push(block)
+                resolve(block)
+            }
+            self.getBlockByHeight(self.chain.length).then( currentBlock => {
+                block.previousBlockHash = currentBlock.hash;
+                block.time = parseInt(new Date().getTime().toString().slice(0, -3));
+                block.height = currentBlock.height;
+                block.hash = SHA256(JSON.parse(self)).toString(); 
+                self.chain.push(block)
+                self.chain.height += 1;
+            }).then(()=>{
+                resolve(block)
+           }).catch(()=>{
+                reject(new Error('error occured adding new block'));
+           });
         });
     }
+
 
     /**
      * The requestMessageOwnershipVerification(address) method
@@ -78,7 +95,8 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            
+            let unsignedMessage = `${address}:${new Date().getTime().toString().slice(0,-3)}:starRegistry`;
+            resolve(unsignedMessage);
         });
     }
 
@@ -91,7 +109,7 @@ class Blockchain {
      * 1. Get the time from the message sent as a parameter example: `parseInt(message.split(':')[1])`
      * 2. Get the current time: `let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));`
      * 3. Check if the time elapsed is less than 5 minutes
-     * 4. Veify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
+     * 4. Verify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
      * 5. Create the block and add it to the chain
      * 6. Resolve with the block added.
      * @param {*} address 
@@ -101,8 +119,18 @@ class Blockchain {
      */
     submitStar(address, message, signature, star) {
         let self = this;
+
         return new Promise(async (resolve, reject) => {
-            
+            const timeMessageSigned = parseInt(message.split(':')[1]);
+            const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+            if ((currentTime - timeMessageSigned) >= (5 * 60)) reject(new Error('Request timed out.'));
+            if(!bitcoinMessage.verify(message, address, signature)) reject(new Error('bad message'))
+            star.message = message;
+            const block = new BlockClass(star);
+            self._addBlock(block)
+            if(await self.validateChain() === true) {
+                resolve(block)
+            };
         });
     }
 
@@ -115,7 +143,12 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            let block = self.chain.filter(b => b.hash === hash)[0];
+            if(block){
+                resolve(block);
+            } else {
+                resolve(null);
+            }
         });
     }
 
@@ -146,7 +179,22 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            
+            self.chain.forEach(block =>{
+                try
+                    {
+                    //decode the block body
+                    const body = JSON.parse(hex2ascii( block.body ));
+                    if(body.message){
+                        const messageAddress = body.message.split(':')[0];
+                        if(messageAddress === address){ stars.push(body.star) };
+                    }
+
+                }
+                catch{
+                    reject(new Error('exception getting stars by wallet address'));
+                }
+            })
+            resolve(stars);
         });
     }
 
@@ -159,8 +207,15 @@ class Blockchain {
     validateChain() {
         let self = this;
         let errorLog = [];
-        return new Promise(async (resolve, reject) => {
-            
+        return new Promise( async (resolve, reject) => {
+            self.chain.forEach(block => {
+              block.validate().then( validBlock => {
+                    if(!validBlock){errorLog.push(`error validating block :${block.hash}`)}
+                    errorLog.push(`error validating block :${block.hash}`)
+                });
+
+            })
+            resolve(errorLog);
         });
     }
 
