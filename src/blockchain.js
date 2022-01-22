@@ -65,21 +65,18 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            if(block.height === 0 ){
-                self.chain.push(block)
-                resolve(block)
-            }
-            self.getBlockByHeight(self.chain.length).then( currentBlock => {
-                block.previousBlockHash = currentBlock.hash;
+
+            self.getBlockByHeight(self.height).then( currentBlock => {     
+                block.previousBlockHash = currentBlock ? currentBlock.hash : null;
                 block.time = parseInt(new Date().getTime().toString().slice(0, -3));
-                block.height = currentBlock.height;
-                block.hash = SHA256(JSON.parse(self)).toString(); 
+                block.height = currentBlock ? currentBlock.height + 1 : 0;
+                block.hash = SHA256(JSON.stringify(block)).toString(); 
+                self.height += 1;
                 self.chain.push(block)
-                self.chain.height += 1;
             }).then(()=>{
                 resolve(block)
-           }).catch(()=>{
-                reject(new Error('error occured adding new block'));
+           }).catch((error)=>{
+                console.log(`error occured adding new block:${error }`);
            });
         });
     }
@@ -119,18 +116,35 @@ class Blockchain {
      */
     submitStar(address, message, signature, star) {
         let self = this;
-
         return new Promise(async (resolve, reject) => {
             const timeMessageSigned = parseInt(message.split(':')[1]);
             const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-            if ((currentTime - timeMessageSigned) >= (5 * 60)) reject(new Error('Request timed out.'));
-            if(!bitcoinMessage.verify(message, address, signature)) reject(new Error('bad message'))
-            star.message = message;
-            const block = new BlockClass(star);
-            self._addBlock(block)
-            if(await self.validateChain() === true) {
-                resolve(block)
-            };
+            //if time is greater than 5 min. 
+            const badTime = (currentTime - timeMessageSigned) >= (5 * 60);
+            const validMessage = bitcoinMessage.verify(message, address, signature);
+            if (badTime && !validMessage){
+                reject('both invalid time and invalid signature, block not being added')
+            }
+            if(badTime){
+                reject('invalid time, block not being added');
+            }
+            if(!validMessage){
+                reject('invalid signature, block not being added');
+            }
+            if(!badTime && validMessage){
+                star.message = message;
+                const block = new BlockClass.Block(star);
+                await self._addBlock(block)
+                const errors = await self.validateChain();
+                if(errors.length === 0 ){
+                    resolve(block)
+                }
+                else
+                {
+                   //invalidated becuase chain is incorrect      
+                  reject(errors)
+                }
+            }
         });
     }
 
@@ -186,7 +200,7 @@ class Blockchain {
                     const body = JSON.parse(hex2ascii( block.body ));
                     if(body.message){
                         const messageAddress = body.message.split(':')[0];
-                        if(messageAddress === address){ stars.push(body.star) };
+                        if(messageAddress === address){ stars.push(body) };
                     }
 
                 }
@@ -209,11 +223,11 @@ class Blockchain {
         let errorLog = [];
         return new Promise( async (resolve, reject) => {
             self.chain.forEach(block => {
-              block.validate().then( validBlock => {
-                    if(!validBlock){errorLog.push(`error validating block :${block.hash}`)}
-                    errorLog.push(`error validating block :${block.hash}`)
+            block.validate().then( validBlock => {
+                    if(!validBlock){
+                        errorLog.push(`error validating block :${block.hash}`)
+                    }
                 });
-
             })
             resolve(errorLog);
         });
