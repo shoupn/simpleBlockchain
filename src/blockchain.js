@@ -116,25 +116,35 @@ class Blockchain {
      */
     submitStar(address, message, signature, star) {
         let self = this;
-
         return new Promise(async (resolve, reject) => {
             const timeMessageSigned = parseInt(message.split(':')[1]);
             const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
-            if ((currentTime - timeMessageSigned) >= (5 * 60)) reject(new Error('Request timed out.'));
-            if(!bitcoinMessage.verify(message, address, signature)) reject(new Error('bad message'))
-            star.message = message;
-            const block = new BlockClass.Block(star);
-            await self._addBlock(block)
-            await self.validateChain().then( res => {
-                if(res.length === 0 ){
+            //if time is greater than 5 min. 
+            const badTime = (currentTime - timeMessageSigned) >= (5 * 60);
+            const validMessage = bitcoinMessage.verify(message, address, signature);
+            if (badTime && !validMessage){
+                reject('both invalid time and invalid signature, block not being added')
+            }
+            if(badTime){
+                reject('invalid time, block not being added');
+            }
+            if(!validMessage){
+                reject('invalid signature, block not being added');
+            }
+            if(!badTime && validMessage){
+                star.message = message;
+                const block = new BlockClass.Block(star);
+                await self._addBlock(block)
+                const errors = await self.validateChain();
+                if(errors.length === 0 ){
                     resolve(block)
                 }
-                else{
-                    
-                    resolve(JSON.parse(res))
+                else
+                {
+                   //invalidated becuase chain is incorrect      
+                  reject(errors)
                 }
-            }) 
-
+            }
         });
     }
 
