@@ -120,7 +120,7 @@ class Blockchain {
             const timeMessageSigned = parseInt(message.split(':')[1]);
             const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             //if time is greater than 5 min. 
-            const badTime = false//(currentTime - timeMessageSigned) >= (5 * 60);
+            const badTime = (currentTime - timeMessageSigned) >= (5 * 60);
             const validMessage = bitcoinMessage.verify(message, address, signature);
             if (badTime && !validMessage){
                 reject('both invalid time and invalid signature, block not being added')
