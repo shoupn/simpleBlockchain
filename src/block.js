@@ -39,12 +39,11 @@ class Block {
         let self = this;
         return new Promise(async (resolve, reject) => {
             // Save in auxiliary variable the current block hash
-            const hash = self.hash;
-            // Recalculate the hash of the Block
-            self.hash = null
-            self.hash = SHA256(JSON.stringify(self)).toString();
+            //using spread operator and setting hash to null
+            const clonedBlock = {...self, hash:null };
+            const compareHash = SHA256(JSON.stringify(clonedBlock)).toString();
             // Comparing if the hashes changed
-            resolve(hash === self.hash);
+            resolve(compareHash === self.hash);
         });
     }
 
