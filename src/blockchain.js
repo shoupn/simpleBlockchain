@@ -158,7 +158,7 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-            let block = self.chain.filter(b => b.hash === hash)[0];
+            let block = self.chain.find(b => b.hash === hash);
             if(block){
                 resolve(block);
             } else {
@@ -175,7 +175,7 @@ class Blockchain {
     getBlockByHeight(height) {
         let self = this;
         return new Promise((resolve, reject) => {
-            let block = self.chain.filter(p => p.height === height)[0];
+            let block = self.chain.find(p => p.height === height);
             if(block){
                 resolve(block);
             } else {
@@ -200,7 +200,7 @@ class Blockchain {
                     //decode the block body
                     //should be able to decode both the message and split and assess if address matches
                     //if so push the star object
-                    const body = JSON.parse(hex2ascii( block.body ));
+                    const body = block.getBData();
                     if(body.message){
                         const messageAddress = body.message.split(':')[0];
                         if(messageAddress === address){ stars.push(body.star) };
@@ -231,6 +231,7 @@ class Blockchain {
                         }
                     });
                 //using the chains height sub 1 to get previous block
+                //if block is genesis, there is no previous hash
                 if(block.height > 0){
                     const previousBlockHash = self.chain[block.height- 1].hash;
                     if(block.previousBlockHash !== previousBlockHash){
