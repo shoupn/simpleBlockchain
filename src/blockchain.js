@@ -205,7 +205,6 @@ class Blockchain {
                         const messageAddress = body.message.split(':')[0];
                         if(messageAddress === address){ stars.push(body.star) };
                     }
-
                 }
                 catch{
                     reject(new Error('exception getting stars by wallet address'));
@@ -226,7 +225,6 @@ class Blockchain {
         let errorLog = [];
         return new Promise( async (resolve, reject) => {
             self.chain.forEach(block => {
-
                 block.validate().then( validBlock => {
                         if(!validBlock){
                             errorLog.push(`error validating block :${block.hash}`)
