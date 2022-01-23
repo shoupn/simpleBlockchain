@@ -132,8 +132,9 @@ class Blockchain {
                 reject('invalid signature, block not being added');
             }
             if(!badTime && validMessage){
-                star.message = message;
-                const block = new BlockClass.Block(star);
+                //adding both the message and the star object to the block for encoding
+                const data = {star, message}
+                const block = new BlockClass.Block(data);
                 await self._addBlock(block)
                 const errors = await self.validateChain();
                 if(errors.length === 0 ){
@@ -197,12 +198,13 @@ class Blockchain {
                 try
                     {
                     //decode the block body
+                    //should be able to decode both the message and split and assess if address matches
+                    //if so push the star object
                     const body = JSON.parse(hex2ascii( block.body ));
                     if(body.message){
                         const messageAddress = body.message.split(':')[0];
-                        if(messageAddress === address){ stars.push(body) };
+                        if(messageAddress === address){ stars.push(body.star) };
                     }
-
                 }
                 catch{
                     reject(new Error('exception getting stars by wallet address'));
@@ -223,11 +225,16 @@ class Blockchain {
         let errorLog = [];
         return new Promise( async (resolve, reject) => {
             self.chain.forEach(block => {
-            block.validate().then( validBlock => {
-                    if(!validBlock){
-                        errorLog.push(`error validating block :${block.hash}`)
-                    }
-                });
+                block.validate().then( validBlock => {
+                        if(!validBlock){
+                            errorLog.push(`error validating block :${block.hash}`)
+                        }
+                    });
+                //using the chains height sub 1 to get previous block
+                const previousBlockHash = self.chain[self.height- 1].hash;
+                if(block.height > 0 && block.previousBlockHash !== previousBlockHash){
+                    errorLog.push(`error validating chain for block: ${block.hash} has invalid previousHash ${previousBlockHash}`)
+                }
             })
             resolve(errorLog);
         });
