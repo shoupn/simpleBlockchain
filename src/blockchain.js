@@ -226,11 +226,17 @@ class Blockchain {
         let errorLog = [];
         return new Promise( async (resolve, reject) => {
             self.chain.forEach(block => {
-            block.validate().then( validBlock => {
-                    if(!validBlock){
-                        errorLog.push(`error validating block :${block.hash}`)
-                    }
-                });
+
+                block.validate().then( validBlock => {
+                        if(!validBlock){
+                            errorLog.push(`error validating block :${block.hash}`)
+                        }
+                    });
+                //using the chains height sub 1 to get previous block
+                const previousBlockHash = self.chain[self.height- 1].hash;
+                if(block.height > 0 && block.previousBlockHash !== previousBlockHash){
+                    errorLog.push(`error validating chain for block: ${block.hash} has invalid previousHash ${previousBlockHash}`)
+                }
             })
             resolve(errorLog);
         });
