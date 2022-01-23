@@ -132,8 +132,9 @@ class Blockchain {
                 reject('invalid signature, block not being added');
             }
             if(!badTime && validMessage){
-                star.message = message;
-                const block = new BlockClass.Block(star);
+                //adding both the message and the star object to the block for encoding
+                const data = {star, message}
+                const block = new BlockClass.Block(data);
                 await self._addBlock(block)
                 const errors = await self.validateChain();
                 if(errors.length === 0 ){
@@ -197,10 +198,12 @@ class Blockchain {
                 try
                     {
                     //decode the block body
+                    //should be able to decode both the message and split and assess if address matches
+                    //if so push the star object
                     const body = JSON.parse(hex2ascii( block.body ));
                     if(body.message){
                         const messageAddress = body.message.split(':')[0];
-                        if(messageAddress === address){ stars.push(body) };
+                        if(messageAddress === address){ stars.push(body.star) };
                     }
 
                 }
