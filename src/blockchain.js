@@ -120,7 +120,7 @@ class Blockchain {
             const timeMessageSigned = parseInt(message.split(':')[1]);
             const currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             //if time is greater than 5 min. 
-            const badTime = (currentTime - timeMessageSigned) >= (5 * 60);
+            const badTime = false//(currentTime - timeMessageSigned) >= (5 * 60);
             const validMessage = bitcoinMessage.verify(message, address, signature);
             if (badTime && !validMessage){
                 reject('both invalid time and invalid signature, block not being added')
@@ -231,9 +231,11 @@ class Blockchain {
                         }
                     });
                 //using the chains height sub 1 to get previous block
-                const previousBlockHash = self.chain[self.height- 1].hash;
-                if(block.height > 0 && block.previousBlockHash !== previousBlockHash){
-                    errorLog.push(`error validating chain for block: ${block.hash} has invalid previousHash ${previousBlockHash}`)
+                if(block.height > 0){
+                    const previousBlockHash = self.chain[block.height- 1].hash;
+                    if(block.previousBlockHash !== previousBlockHash){
+                        errorLog.push(`error validating chain for block: ${block.hash} has invalid previousHash ${previousBlockHash}`)
+                    }
                 }
             })
             resolve(errorLog);
